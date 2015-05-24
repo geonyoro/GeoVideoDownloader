@@ -39,6 +39,8 @@ class App(Tk.Frame):
 
         self.output_filename = None
 
+        self.master.wm_iconbitmap(os.path.join(os.path.dirname(__file__), "@geondownloader.xbm"))
+
         self.dialog_initial_directory = os.path.join(os.environ["HOME"],"Videos")
 
         self.bigFont = tkFont.Font(root=self.master, size=12, underline=1)
@@ -95,23 +97,27 @@ class App(Tk.Frame):
             for i in range(2):
                 bg.columnconfigure(i, weight=1)
             for i in [
-                {"type": "label", "widget_name": "", "row": 1, "column": 0, "text": "Output Filename:",  },
+                # {"type": "label", "widget_name": "", "row": 1, "column": 0, "text": "Output Filename:",  },
                 {"type": "label", "widget_name": "", "row": 2, "column": 0, "text": "Continue:" },
                 {"type": "label", "widget_name": "", "row": 3, "column": 0, "text": "URL:" },
                 {"type": "label", "widget_name": "", "row": 4, "column": 0, "text": "Number of Segments:" },
                 {"type": "label", "widget_name": "", "row": 5, "column": 0, "text": "UserAgent:" },
 
-                {"type": "button", "widget_name": "", "columnspan": 1, "row": 1, "column": 1, "text": "Choose Output", "command": self.choose_output},
+                {"type": "button", "widget_name": "", "columnspan": 1, "row": 1, "ipadx": 0, "column": 0, "columnspan": 2, "text": "Choose Output Filename", "command": self.choose_output},
 
+                # {"type": "listb", "row": 3, "column": 1, "widget_name": "listb_url", "text":
+                #     "https://captbbrucato.files.wordpress.com/2011/08/dscf0585_stitch-besonhurst-2.jpg" },
                 {"type": "listb", "row": 3, "column": 1, "widget_name": "listb_url", "text":
-                    "https://captbbrucato.files.wordpress.com/2011/08/dscf0585_stitch-besonhurst-2.jpg" },
+                    "" },
+
                 {"type": "listb", "row": 5, "column": 1, "widget_name": "listb_user_agent", "text": 
                     "Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1"},
 
                 {"type": "checkb", "row": 2, "column": 1, "default_state": 1, "widget_name": "cb_continue" },
-                {"type": "checkb", "row": 4, "column": 1, "default_state": 0, "widget_name": "cb_num_segments" },
+                
+                {"type": "entry", "row": 4, "column": 1, "default_state": 0, "text":1, "width":2, "widget_name": "cb_num_segments" },
 
-                {"type": "button", "widget_name": "btn_add", "row": 7, "column": 0, "columnspan": 2, "text": "Add", "command": self.add_download },
+                {"type": "button", "widget_name": "btn_add", "row": 7, "column": 0, "ipadx": 60, "columnspan": 2, "text": "Add", "command": self.add_download },
                 
                 {"type": "separat", "row": 6, "column": 0, "columnspan": 2 },
                 {"type": "separat", "row": 0, "column": 0, "columnspan": 2 }
@@ -125,14 +131,16 @@ class App(Tk.Frame):
                     var.set(i["text"])
                     self.widgets[i["widget_name"]] = var
                     w = Tk.Entry(ig, bg=App.background_gray_1, width=widths, textvariable=var)
-                    w.grid(row=i["row"], column=i["column"], sticky="ew", padx=8)
+                    if i.has_key("width"):
+                        w.config(width=i["width"])
+                    w.grid(row=i["row"], column=i["column"], sticky="w", padx=8, ipadx=3)
 
                 elif i["type"] == "checkb":
                     var = Tk.IntVar()
                     var.set(i["default_state"])
                     self.widgets[i["widget_name"]] = var
                     w = Tk.Checkbutton(ig, bg=App.background_gray_1, variable=var)
-                    w.grid(row=i["row"], column=i["column"], sticky="", padx=8, pady=5)
+                    w.grid(row=i["row"], column=i["column"], sticky="w", padx=8, pady=5)
 
                 elif i["type"] == "listb":
                     w = Tk.Text(ig, bg=App.background_gray_1, height=2, width=widths)
@@ -143,7 +151,7 @@ class App(Tk.Frame):
                 elif i["type"] == "button":
                     b = Tk.Button(ig, text=i["text"], command=i["command"])
                     self.widgets[i["widget_name"]] = b
-                    b.grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="", padx=5, ipadx=60)
+                    b.grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="", padx=5, ipadx=i["ipadx"])
 
                 elif i["type"] == "separat":
                     ttk.Separator(ig, orient=Tk.HORIZONTAL).grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="ew", padx=5, pady=10)    

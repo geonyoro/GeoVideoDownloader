@@ -49,8 +49,8 @@ class Downloader(object):
 				}
 
 		size = os.path.getsize(self.output_filename)
-		if size:
-			size-=1
+		# if size!=0:
+		# 	size-=1
 		return {
 			"type" : "continue",
 			"size" : size
@@ -115,4 +115,4 @@ class Downloader(object):
 
 
 if __name__=="__main__":
-	d = Downloader("test_img.jpg", 1, "https://captbbrucato.files.wordpress.com/2011/08/dscf0585_stitch-besonhurst-2.jpg")
+	d = Downloader("/home/george/Desktop/test_img.jpg", 1, "https://captbbrucato.files.wordpress.com/2011/08/dscf0585_stitch-besonhurst-2.jpg")
