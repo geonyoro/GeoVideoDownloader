@@ -82,7 +82,7 @@ class Downloader(object):
 
 				w = open(self.output_filename, 'a')
 				for chunk in response.iter_content(chunk_size=512*1024):
-					self.speed = "{:.2f}".format( (len(chunk)/1024.0)/float(time.time()-previous_time) )
+					self.speed = "{:.1f}".format( (len(chunk)/1024.0)/float(time.time()-previous_time) )
 					previous_time = time.time()
 
 					if not self.running:

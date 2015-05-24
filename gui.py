@@ -22,6 +22,10 @@ class App(Tk.Frame):
         Tk.Frame.__init__(self, bg=App.background_gray_1)
         self.update_interval = 50
 
+        self.output_filename = None
+
+        self.dialog_initial_directory = os.path.dirname(__file__)
+
         self.bigFont = tkFont.Font(root=self.master, size=12, underline=1)
         self.progressFont=tkFont.Font(root=self.master, size=10, underline=1)
         
@@ -82,7 +86,7 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "", "row": 4, "column": 0, "text": "Number of Segments:" },
                 {"type": "label", "widget_name": "", "row": 5, "column": 0, "text": "UserAgent:" },
 
-                {"type": "entry", "row": 1, "column": 1, "text": "test2.jpg", "widget_name": "entry_output_filename" },
+                {"type": "button", "widget_name": "", "columnspan": 1, "row": 1, "column": 1, "text": "Choose Output", "command": self.choose_output},
 
                 {"type": "listb", "row": 3, "column": 1, "widget_name": "listb_url", "text":
                     "https://captbbrucato.files.wordpress.com/2011/08/dscf0585_stitch-besonhurst-2.jpg" },
@@ -127,7 +131,7 @@ class App(Tk.Frame):
                     b.grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="", padx=5, ipadx=60)
 
                 elif i["type"] == "separat":
-                    ttk.Separator(ig, orient=Tk.HORIZONTAL).grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="ew", padx=5, pady=10)
+                    ttk.Separator(ig, orient=Tk.HORIZONTAL).grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="ew", padx=5, pady=10)    
 
             ig.grid(row=1,column=0)
 
@@ -174,10 +178,20 @@ class App(Tk.Frame):
         print "resume_session"
         pass
 
+    def choose_output(self):
+        path = tkFileDialog.asksaveasfilename(initialdir=self.dialog_initial_directory, title="Choose Save as Location:")
+        self.output_filename = path
+        self.dialog_initial_directory = os.path.dirname(path)
+
     def add_download(self):
         global downloader_instances, downloads_grid_row
 
-        output_filename = self.widgets["entry_output_filename"].get()
+        if self.output_filename is None:
+            return
+
+        output_filename = os.path.split(self.output_filename)[-1]
+        self.output_filename = None
+
         download_continue = self.widgets["cb_continue"].get()
         url = self.widgets["listb_url"].get("0.0", Tk.END).lstrip(" ")
         user_agent = self.widgets["listb_user_agent"].get("0.0", Tk.END)
