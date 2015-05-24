@@ -16,6 +16,21 @@ exit_app = threading.Event()
 
 downloads_grid_row = 1
 
+#config directory
+config_dir = os.path.join(os.environ["HOME"], ".geon_downloader")
+if not os.path.exists(config_dir):
+    os.mkdir(config_dir)
+
+def humansize(nbytes):
+    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    if nbytes == 0: return '0 B'
+    i = 0
+    while nbytes >= 1024 and i < len(suffixes)-1:
+        nbytes /= 1024.
+        i += 1
+    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
+    return '%s %s' % (f, suffixes[i])
+
 class App(Tk.Frame):
     background_gray_1 = "#f8f8f8"
     def __init__(self):
@@ -24,7 +39,7 @@ class App(Tk.Frame):
 
         self.output_filename = None
 
-        self.dialog_initial_directory = os.path.dirname(__file__)
+        self.dialog_initial_directory = os.path.join(os.environ["HOME"],"Videos")
 
         self.bigFont = tkFont.Font(root=self.master, size=12, underline=1)
         self.progressFont=tkFont.Font(root=self.master, size=10, underline=1)
@@ -171,25 +186,47 @@ class App(Tk.Frame):
         pass
 
     def save_session(self):
-        print "save_session"
-        pass
+        global config_dir
+        session_file = os.path.join(config_dir, "previous_sessions.txt")
+        with open(session_file, 'w') as w:
+            for i in downloader_instances:
+                x = [ str(i) for i in [i.output_filename,  i.download_continue, i.user_agent, i.url] ]
+                write_string =  "<::>".join(x)
+                w.write( "%s\n"%write_string )
+
+        tkMessageBox.showinfo("Saved!", "Saved Session to session_file.")
 
     def resume_session(self):
-        print "resume_session"
+        global config_dir
+        session_file = os.path.join(config_dir, "previous_sessions.txt")
+        w = open(session_file)
+        for line in w.readlines():
+            self.output_filename,  download_continue, user_agent, url = line.split("<::>")
+            self.widgets["cb_continue"].set(int(download_continue))
+            self.widgets["listb_url"].delete('0.0',Tk.END)
+            self.widgets["listb_url"].insert('0.0', url)
+            self.widgets["listb_user_agent"].delete('0.0',Tk.END)
+            self.widgets["listb_user_agent"].insert('0.0', user_agent)
+            self.add_download()
+        w.close()
         pass
 
     def choose_output(self):
         path = tkFileDialog.asksaveasfilename(initialdir=self.dialog_initial_directory, title="Choose Save as Location:")
-        self.output_filename = path
-        self.dialog_initial_directory = os.path.dirname(path)
+        if path:
+            self.output_filename = path
+            self.dialog_initial_directory = os.path.dirname(path)
 
     def add_download(self):
         global downloader_instances, downloads_grid_row
 
+        previous_seen = len(downloader_instances)
+
         if self.output_filename is None:
+            tkMessageBox.showerror('Error!', "Choose Output Filename!")
             return
 
-        output_filename = os.path.split(self.output_filename)[-1]
+        output_filename = self.output_filename
         self.output_filename = None
 
         download_continue = self.widgets["cb_continue"].get()
@@ -209,12 +246,16 @@ class App(Tk.Frame):
         dg = self.widgets["downloads_grid"]
         row = downloads_grid_row
 
-        time.sleep(1)
+        while len(downloader_instances)<= previous_seen:
+            print len(downloader_instances), previous_seen
+
+        time.sleep(0.1)
 
         downloader_instances[-1].download_labels={}
+
         for i in [
-                {"type": "label", "widget_name": "output_filename", "row": 0, "column": 0, "text": output_filename,  },
-                {"type": "label", "widget_name": "url", "row": 0, "column": 1, "text": url},
+                {"type": "label", "widget_name": "output_filename", "row": 0, "column": 0, "text": os.path.split(output_filename)[-1][:40],  },
+                {"type": "label", "widget_name": "url", "row": 0, "column": 1, "text": url[:40]},
                 {"type": "label", "widget_name": "progress", "row": 0, "column": 2, "text": 0},
                 {"type": "label", "widget_name": "progress_percent", "row": 0, "column": 3, "text": 0 },
                 {"type": "label", "widget_name": "speed", "row": 0, "column": 4, "text": 0 },
@@ -224,7 +265,7 @@ class App(Tk.Frame):
                 w = Tk.Label(dg, bg=App.background_gray_1, textvariable=var)     
                 w.var = var  
                 downloader_instances[-1].download_labels[i["widget_name"]] = w 
-                w.grid(row=row, column=i["column"], sticky="wens")
+                w.grid(row=row, column=i["column"], sticky="wens", pady=3)
 
         downloads_grid_row += 1
             
@@ -239,7 +280,7 @@ class App(Tk.Frame):
                 if i.completed:
                     for lab in ["output_filename", "url", "progress", "progress_percent", "speed"]:
                         i.download_labels[lab].config(bg="#06E1DF")
-                i.download_labels["progress"].var.set(i.progress)
+                i.download_labels["progress"].var.set(humansize(i.progress))
                 i.download_labels["progress_percent"].var.set(i.progress_percent)
                 i.download_labels["speed"].var.set(i.speed)
 

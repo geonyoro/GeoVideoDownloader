@@ -3,6 +3,7 @@ import os
 import traceback
 import logging
 import time
+import socket
 
 downloader_instances = []
 
@@ -11,7 +12,8 @@ class Downloader(object):
 		global downloader_instances
 		downloader_instances.append(self)
 
-		url = url.rstrip("\n")
+		url = str(url.rstrip("\n"))
+		user_agent = str(user_agent.rstrip("\n"))
 
 		self.output_filename = output_filename
 		self.download_continue = download_continue
@@ -81,7 +83,7 @@ class Downloader(object):
 					continue
 
 				w = open(self.output_filename, 'a')
-				for chunk in response.iter_content(chunk_size=512*1024):
+				for chunk in response.iter_content(chunk_size=200*1024):
 					self.speed = "{:.1f}".format( (len(chunk)/1024.0)/float(time.time()-previous_time) )
 					previous_time = time.time()
 
@@ -95,12 +97,15 @@ class Downloader(object):
 				self.running = 0
 				self.progress_percent = 100
 				self.completed = 1
+				self.speed = "++C++"
 
 			except requests.exceptions.ConnectionError:
-				print "ConnectionError"
+				# print "ConnectionError"
+				self.speed = "--CE--"
 				pass
-			except requests.exceptions.Timeout:
-				print "timeout"
+			except (requests.exceptions.Timeout,socket.timeout):
+				# print "timeout"
+				self.speed = "--TO--"
 				pass
 			except:
 				self.error_message = "%s"%traceback.format_exc()
