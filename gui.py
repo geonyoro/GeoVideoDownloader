@@ -10,9 +10,18 @@ import requests
 import os
 import time
 import sys
+
+DIR = os.path.dirname(__file__)
+
 from geon_downloader import *
 
+logger_main = logging.getLogger('GUI')
+logger_main.setLevel(logging.DEBUG)
+logger_main.addHandler(file_handler)
 exit_app = threading.Event()
+
+want_to_exit = 0
+shown_message_want_to_exit = 0
 
 downloads_grid_row = 1
 
@@ -39,7 +48,7 @@ class App(Tk.Frame):
 
         self.output_filename = None
 
-        self.master.wm_iconbitmap(os.path.join(os.path.dirname(__file__), "@geondownloader.xbm"))
+        # self.master.wm_iconbitmap("@geondownloader.xbm")
 
         self.dialog_initial_directory = os.path.join(os.environ["HOME"],"Videos")
 
@@ -59,31 +68,51 @@ class App(Tk.Frame):
         self.basic_widgets()
 
         self.grid(row=0,column=0, sticky="nsew")
-        self.master.protocol("WM_DELETE_WINDOW", self.onquit) 
+        self.master.protocol("WM_DELETE_WINDOW", lambda: self.onquit(button_press=1) ) 
 
         self.after( self.update_interval, self.update_window) 
 
     def update_window(self):
         pass
 
-    def onquit(self):
-        global exit_app
+    def onquit(self, button_press = 0):
+        global exit_app, want_to_exit, shown_message_want_to_exit
 
         for i in downloader_instances:
             i.running = 0
+        if button_press:
+            shown_message_want_to_exit = 0
 
-        exit_app.set()
-        self.master.destroy()
-        self.master.quit()
+        if len( threading.enumerate() ) > 1 :
+            if not shown_message_want_to_exit:
+                logger_main.info("Showing message for exit.")
+
+                win = Tk.Toplevel() 
+                win.lift()
+                l = Tk.Label(win, text = "Closing all background Downloaders...\nWill exit the app after finished.").grid()
+                win.title("Title")
+                win.update_idletasks()
+                start = win.winfo_geometry().split("+")[0]
+                win.geometry("+".join([start, "300", "300"]))
+                
+                win.transient(self.master)
+                win.overrideredirect(True)
+                
+                shown_message_want_to_exit = 1
+            want_to_exit = 1
+        else:
+            exit_app.set()
+            self.master.destroy()
+            self.master.quit()
 
     def basic_widgets(self):
         # button_grid
             bg = Tk.Frame(self, bg=App.background_gray_1)
             for i in [
-                {"widget_name": "btn_start", "row": 0, "column": 0, "text": "Start",   "command": self.start_downloads },
+                # {"widget_name": "btn_start", "row": 0, "column": 0, "text": "Start",   "command": self.start_downloads },
                 {"widget_name": "btn_clear_completed", "row": 0, "column": 1, "text": "Clear Completed Downloads", "command": self.clear_completed },
-                {"widget_name": "btn_save_session", "row": 0, "column": 2, "text": "Save Session", "command": self.save_session },
-                {"widget_name": "btn_resume_session", "row": 0, "column": 3, "text": "Resume Session", "command": self.resume_session },
+                {"widget_name": "btn_save_session", "row": 0, "column": 2, "text": "     Save Session     ", "command": self.save_session },
+                {"widget_name": "btn_resume_session", "row": 0, "column": 3, "text": "   Resume Session   ", "command": self.resume_session },
             ]:
                 b = Tk.Button(bg, text=i["text"], command=i["command"])
                 self.widgets[i["widget_name"]] = b
@@ -186,11 +215,19 @@ class App(Tk.Frame):
             bg2.grid(row=3, column=0)
 
     def start_downloads(self):
-        print "start_downloads"
+        # print "start_downloads"
         pass
 
     def clear_completed(self):
-        print "clear_completed"
+        # print "clear_completed"
+        logger_main.debug("clear_completed: pressed")
+        for index in range( len(downloader_instances)-1, -1, -1):
+            i = downloader_instances[index]
+            if i.completed:
+                logger_main.debug("clear_completed: index completed \n\t\tURL: %s\n\t\tFile: %s", i.url, i.output_filename )
+                for widget_name in i.download_labels.keys():
+                    i.download_labels[widget_name].grid_forget()
+                del downloader_instances[index]
         pass
 
     def save_session(self):
@@ -241,7 +278,6 @@ class App(Tk.Frame):
         url = self.widgets["listb_url"].get("0.0", Tk.END).lstrip(" ")
         user_agent = self.widgets["listb_user_agent"].get("0.0", Tk.END)
 
-        old_length = len(downloader_instances)
         t = threading.Thread(target=Downloader, kwargs={
                     "output_filename" : output_filename, 
                     "download_continue" : download_continue,
@@ -255,15 +291,17 @@ class App(Tk.Frame):
         row = downloads_grid_row
 
         while len(downloader_instances)<= previous_seen:
-            print len(downloader_instances), previous_seen
+            # pass
+            time.sleep(0.01)
+            # print len(downloader_instances), previous_seen
 
         time.sleep(0.1)
 
         downloader_instances[-1].download_labels={}
 
         for i in [
-                {"type": "label", "widget_name": "output_filename", "row": 0, "column": 0, "text": os.path.split(output_filename)[-1][:40],  },
-                {"type": "label", "widget_name": "url", "row": 0, "column": 1, "text": url[:40]},
+                {"type": "label", "widget_name": "output_filename", "row": 0, "column": 0, "text": os.path.split(output_filename)[-1][:30],  },
+                {"type": "label", "widget_name": "url", "row": 0, "column": 1, "text": url[:30]},
                 {"type": "label", "widget_name": "progress", "row": 0, "column": 2, "text": 0},
                 {"type": "label", "widget_name": "progress_percent", "row": 0, "column": 3, "text": 0 },
                 {"type": "label", "widget_name": "speed", "row": 0, "column": 4, "text": 0 },
@@ -272,17 +310,23 @@ class App(Tk.Frame):
                 var.set(i["text"])
                 w = Tk.Label(dg, bg=App.background_gray_1, textvariable=var)     
                 w.var = var  
+                w.row = row
+                w.bind("<Button-1>", self.x)
                 downloader_instances[-1].download_labels[i["widget_name"]] = w 
                 w.grid(row=row, column=i["column"], sticky="wens", pady=3)
 
         downloads_grid_row += 1
             
     def remove_download(self):
-        print "remove_download"
+        # print "remove_download"
         pass
 
     def update_window(self):
         # print "update_window"
+        global want_to_exit
+        if want_to_exit:
+            self.onquit()
+
         try:
             for i in downloader_instances:
                 if i.completed:
@@ -296,6 +340,13 @@ class App(Tk.Frame):
             pass
         self.after( self.update_interval, self.update_window)
 
+    def x(self):
+        print 1
+
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    try:
+        app = App()
+        app.mainloop()
+    except:
+        logger_main.error("%s", traceback.format_exc() )
+    logger_main.info("Exiting application")
