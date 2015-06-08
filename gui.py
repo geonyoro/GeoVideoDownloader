@@ -117,9 +117,9 @@ class App(Tk.Frame):
                 {"widget_name": "btn_save_session", "row": 0, "column": 2, "text": "     Save Session     ", "command": self.save_session },
                 {"widget_name": "btn_resume_session", "row": 0, "column": 3, "text": "   Resume Session   ", "command": self.resume_session },
             ]:
-                b = Tk.Button(bg, text=i["text"], command=i["command"])
+                b = Tk.Button(bg, text=i["text"], command=i["command"], bg="#FFFC94", relief="flat")
                 self.widgets[i["widget_name"]] = b
-                b.grid(row=0, column=i["column"], sticky="", padx=5)
+                b.grid(row=0, column=i["column"], sticky="", padx=5, pady=2)
 
             bg.grid(row=0,column=0)
 
@@ -162,7 +162,7 @@ class App(Tk.Frame):
                     var = Tk.StringVar()
                     var.set(i["text"])
                     self.widgets[i["widget_name"]] = var
-                    w = Tk.Entry(ig, bg=App.background_gray_1, width=widths, textvariable=var)
+                    w = Tk.Entry(ig, bg="#E8FFFC", width=widths, textvariable=var, relief="flat")
                     if i.has_key("width"):
                         w.config(width=i["width"])
                     w.grid(row=i["row"], column=i["column"], sticky="w", padx=8, ipadx=3)
@@ -175,13 +175,13 @@ class App(Tk.Frame):
                     w.grid(row=i["row"], column=i["column"], sticky="w", padx=8, pady=5)
 
                 elif i["type"] == "listb":
-                    w = Tk.Text(ig, bg=App.background_gray_1, height=2, width=widths)
+                    w = Tk.Text(ig, bg="#E8FFFC", height=2, width=widths, relief="flat")
                     self.widgets[i["widget_name"]] = w
                     w.insert('0.0', i['text'] )
                     w.grid(row=i["row"], column=i["column"], sticky="ew", padx=8, pady=5)
 
                 elif i["type"] == "button":
-                    b = Tk.Button(ig, text=i["text"], command=i["command"])
+                    b = Tk.Button(ig, text=i["text"], command=i["command"], bg="#FFFC94", relief="flat")
                     self.widgets[i["widget_name"]] = b
                     b.grid(row=i["row"], column=i["column"], columnspan=i["columnspan"], sticky="", padx=5, ipadx=i["ipadx"])
 
@@ -205,14 +205,14 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "", "row": 0, "column": 4, "text": "Speed" },
                 ]:
                 if i["type"] == "label":
-                    w = Tk.Label(dg, text=i["text"])        
+                    w = Tk.Label(dg, text=i["text"], bg="#94C9FF", bd=1, relief="groove")        
                     w.grid(row=i["row"], column=i["column"], sticky="we", ipady=5)
 
             dg.grid(row=2,column=0, sticky='ew', padx=5, pady=5)
 
         #lower_button_grid
             bg2 = Tk.Frame(self, bg=App.background_gray_1)
-            b = Tk.Button(bg2, text="Remove", command=self.remove_download)
+            b = Tk.Button(bg2, text="Remove", command=self.remove_download, bg="#FFFC94", relief="flat")
             self.widgets["btn_remove"] = b
             b.grid(row=0, column=0, sticky="", padx=5, ipadx=47, pady=10)
             bg2.grid(row=3, column=0)
@@ -310,7 +310,7 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "speed", "row": 0, "column": 4, "text": 0 },
             ]:
                 var = Tk.StringVar()
-                var.set(str(i["text"]).strip("\n")+"\n")
+                var.set(str(i["text"]).strip("\n"))
                 w = Tk.Label(dg, bg=App.background_gray_1, textvariable=var)     
                 w.var = var  
                 w.row = row
@@ -322,7 +322,7 @@ class App(Tk.Frame):
                 w.bind("<Enter>", self.download_row_enter)
                 w.bind("<Leave>", self.download_row_leave)
                 downloader_instances[-1].download_labels[i["widget_name"]] = w 
-                w.grid(row=row, column=i["column"], sticky="wens", pady=3)
+                w.grid(row=row, column=i["column"], sticky="wens", pady=3, ipady=5)
 
         downloads_grid_row += 1
             
@@ -384,6 +384,7 @@ class App(Tk.Frame):
             widget = event.widget.downloader_instance.download_labels[i]
             widget.current_mouse_clicked_on_download = not widget.current_mouse_clicked_on_download
             if not widget.current_mouse_clicked_on_download:
+                widget.config(bg="#FF9A9A")
                 continue
             widget.previous_color =  "#E6E6E6"
             widget.config(bg="#BEFFC6")
