@@ -97,7 +97,7 @@ class Downloader(object):
 				file_mode = 'a'
 
 				self.progress = action["size"]
-				logger.debug("Starting Progress: output_filename: %s : %s", os.path.split(self.output_filename)[-1], self.progress )
+				logger.debug("Starting Progress: output_filename: %s : %s", os.path.split(self.output_filename)[-1], humansize(self.progress ) )
 
 				response = requests.get('%s'%self.url, headers=headers, stream=True, timeout=5, verify=False)
 
@@ -141,21 +141,21 @@ class Downloader(object):
 				# print "ConnectionError"
 				self.speed = "--CE--"
 				action = self.check_if_continue_or_start()
-				logger.debug("CE: Action: %s, Progress: %s", action, self.progress)
+				logger.debug("CE: Action: %s, Progress: %s", action, humansize(self.progress) )
 
 			except (requests.exceptions.Timeout,socket.timeout, ssl.SSLError):
 				# print "timeout"
 				self.speed = "--TO--"
 				action = self.check_if_continue_or_start()
 				self.progress = action["size"]
-				logger.debug("TO/SSl: Action: %s, Progress: %s", action, self.progress)
+				logger.debug("TO/SSl: Action: %s, Progress: %s", action, humansize(self.progress) )
 
 			except:
 				self.error_message = "%s" % traceback.format_exc()
 				# print "Error\n%s"%self.error_message
 				self.error_state = 1
 				self.running = 0
-				logger.debug("other Error: Action: %s \n\t\t %self", action, self.error_message)
+				logger.debug("other Error: Action: %s \n\t\t%s", action, self.error_message)
 
 
 if __name__=="__main__":

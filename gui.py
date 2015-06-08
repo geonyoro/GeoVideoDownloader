@@ -44,6 +44,8 @@ class App(Tk.Frame):
     background_gray_1 = "#f8f8f8"
     def __init__(self):
         Tk.Frame.__init__(self, bg=App.background_gray_1)
+        self.current_mouse_over_download = 0
+
         self.update_interval = 50
 
         self.output_filename = None
@@ -311,7 +313,11 @@ class App(Tk.Frame):
                 w = Tk.Label(dg, bg=App.background_gray_1, textvariable=var)     
                 w.var = var  
                 w.row = row
-                w.bind("<Button-1>", self.x)
+                w.previous_color = "#E6E6E6"
+                w.config(bg="#E6E6E6")
+                w.downloader_instance = downloader_instances[-1]
+                w.bind("<Enter>", self.download_row_enter)
+                w.bind("<Leave>", self.download_row_leave)
                 downloader_instances[-1].download_labels[i["widget_name"]] = w 
                 w.grid(row=row, column=i["column"], sticky="wens", pady=3)
 
@@ -331,6 +337,8 @@ class App(Tk.Frame):
             for i in downloader_instances:
                 if i.completed:
                     for lab in ["output_filename", "url", "progress", "progress_percent", "speed"]:
+                        if i.download_labels[lab].cget("bg") == "#FF9A9A":
+                            break
                         i.download_labels[lab].config(bg="#06E1DF")
                 i.download_labels["progress"].var.set(humansize(i.progress))
                 i.download_labels["progress_percent"].var.set(i.progress_percent)
@@ -340,13 +348,23 @@ class App(Tk.Frame):
             pass
         self.after( self.update_interval, self.update_window)
 
-    def x(self):
-        print 1
+    def download_row_enter(self, event):
+        self.current_mouse_over_download = 1
+        for i in event.widget.downloader_instance.download_labels.keys():
+            widget = event.widget.downloader_instance.download_labels[i]
+            widget.previous_color =  widget.cget("bg")
+            widget.config(bg="#FF9A9A")
+
+    def download_row_leave(self, event):
+        self.current_mouse_over_download = 0
+        for i in event.widget.downloader_instance.download_labels.keys():
+            previous_color = event.widget.downloader_instance.download_labels[i].previous_color
+            event.widget.downloader_instance.download_labels[i].config(bg=previous_color)
 
 if __name__ == "__main__":
     try:
         app = App()
         app.mainloop()
     except:
-        logger_main.error("%s", traceback.format_exc() )
+        logger_main.error("Error: %s", traceback.format_exc() )
     logger_main.info("Exiting application")
