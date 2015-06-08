@@ -45,6 +45,7 @@ class App(Tk.Frame):
     def __init__(self):
         Tk.Frame.__init__(self, bg=App.background_gray_1)
         self.current_mouse_over_download = 0
+        self.current_mouse_clicked_on_download = 0
 
         self.update_interval = 50
 
@@ -205,7 +206,7 @@ class App(Tk.Frame):
                 ]:
                 if i["type"] == "label":
                     w = Tk.Label(dg, text=i["text"])        
-                    w.grid(row=i["row"], column=i["column"], sticky="we")
+                    w.grid(row=i["row"], column=i["column"], sticky="we", ipady=5)
 
             dg.grid(row=2,column=0, sticky='ew', padx=5, pady=5)
 
@@ -309,13 +310,15 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "speed", "row": 0, "column": 4, "text": 0 },
             ]:
                 var = Tk.StringVar()
-                var.set(i["text"])
+                var.set(str(i["text"]).strip("\n")+"\n")
                 w = Tk.Label(dg, bg=App.background_gray_1, textvariable=var)     
                 w.var = var  
                 w.row = row
                 w.previous_color = "#E6E6E6"
                 w.config(bg="#E6E6E6")
                 w.downloader_instance = downloader_instances[-1]
+                w.current_mouse_clicked_on_download = 0
+                w.bind("<Button-1>", self.download_row_click)
                 w.bind("<Enter>", self.download_row_enter)
                 w.bind("<Leave>", self.download_row_leave)
                 downloader_instances[-1].download_labels[i["widget_name"]] = w 
@@ -324,7 +327,17 @@ class App(Tk.Frame):
         downloads_grid_row += 1
             
     def remove_download(self):
-        # print "remove_download"
+        for i in downloader_instances:
+            skip = 0
+            for j in i.download_labels.keys():
+                lab = i.download_labels[j]
+                if not lab.current_mouse_clicked_on_download:
+                    skip = 1
+                    break
+                i.running = 0
+                lab.grid_forget()
+            if skip:
+                continue
         pass
 
     def update_window(self):
@@ -337,7 +350,7 @@ class App(Tk.Frame):
             for i in downloader_instances:
                 if i.completed:
                     for lab in ["output_filename", "url", "progress", "progress_percent", "speed"]:
-                        if i.download_labels[lab].cget("bg") == "#FF9A9A":
+                        if self.current_mouse_clicked_on_download or i.download_labels[lab].current_mouse_over_download:
                             break
                         i.download_labels[lab].config(bg="#06E1DF")
                 i.download_labels["progress"].var.set(humansize(i.progress))
@@ -352,14 +365,28 @@ class App(Tk.Frame):
         self.current_mouse_over_download = 1
         for i in event.widget.downloader_instance.download_labels.keys():
             widget = event.widget.downloader_instance.download_labels[i]
+            if widget.current_mouse_clicked_on_download:
+                return
             widget.previous_color =  widget.cget("bg")
             widget.config(bg="#FF9A9A")
 
     def download_row_leave(self, event):
         self.current_mouse_over_download = 0
         for i in event.widget.downloader_instance.download_labels.keys():
+            widget = event.widget.downloader_instance.download_labels[i]
+            if widget.current_mouse_clicked_on_download:
+                return
             previous_color = event.widget.downloader_instance.download_labels[i].previous_color
             event.widget.downloader_instance.download_labels[i].config(bg=previous_color)
+
+    def download_row_click(self, event):
+        for i in event.widget.downloader_instance.download_labels.keys():
+            widget = event.widget.downloader_instance.download_labels[i]
+            widget.current_mouse_clicked_on_download = not widget.current_mouse_clicked_on_download
+            if not widget.current_mouse_clicked_on_download:
+                continue
+            widget.previous_color =  "#E6E6E6"
+            widget.config(bg="#BEFFC6")
 
 if __name__ == "__main__":
     try:
