@@ -343,6 +343,7 @@ class App(Tk.Frame):
     def update_window(self):
         # print "update_window"
         global want_to_exit
+        self.after( self.update_interval, self.update_window)
         if want_to_exit:
             self.onquit()
 
@@ -350,7 +351,7 @@ class App(Tk.Frame):
             for i in downloader_instances:
                 if i.completed:
                     for lab in ["output_filename", "url", "progress", "progress_percent", "speed"]:
-                        if self.current_mouse_clicked_on_download or i.download_labels[lab].current_mouse_over_download:
+                        if i.download_labels[lab].current_mouse_clicked_on_download or self.current_mouse_over_download:
                             break
                         i.download_labels[lab].config(bg="#06E1DF")
                 i.download_labels["progress"].var.set(humansize(i.progress))
@@ -358,8 +359,7 @@ class App(Tk.Frame):
                 i.download_labels["speed"].var.set(i.speed)
 
         except:
-            pass
-        self.after( self.update_interval, self.update_window)
+            logger.error("update_window: %s", traceback.format_exc() )
 
     def download_row_enter(self, event):
         self.current_mouse_over_download = 1
@@ -387,7 +387,7 @@ class App(Tk.Frame):
                 widget.config(bg="#FF9A9A")
                 continue
             widget.previous_color =  "#E6E6E6"
-            widget.config(bg="#BEFFC6")
+            widget.config(bg="#BEFFC6") 
 
 if __name__ == "__main__":
     try:

@@ -7,9 +7,14 @@ import socket
 import ssl
 
 DIR = os.path.dirname(__file__)
+
+config_dir = os.path.join(os.environ["HOME"], ".geon_downloader")
+if not os.path.exists(config_dir):
+    os.mkdir(config_dir)
+
 logger = logging.getLogger('Background_Downloader')
 logger.setLevel(logging.DEBUG)
-file_handler = logging.FileHandler( os.path.join(DIR, 'log.txt' ), mode='w')
+file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
@@ -120,7 +125,7 @@ class Downloader(object):
 
 				w = open(self.output_filename, file_mode )
 				for chunk in response.iter_content(chunk_size=200*1024):
-					logger.debug("Writing chunk: %s : output_filename: %s", self.progress, os.path.split(self.output_filename)[-1])
+					logger.debug("Writing chunk: %s : output_filename: %s", humansize(self.progress), os.path.split(self.output_filename)[-1])
 					self.speed = "{:.1f}".format( (len(chunk)/1024.0)/float(time.time()-previous_time) )
 					previous_time = time.time()
 
