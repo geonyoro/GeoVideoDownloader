@@ -48,11 +48,19 @@ class Downloader(object):
 		self.url = url
 		self.user_agent = user_agent
 		self.completed = 0
+		self.time_remaining = 0
+		self.time_remaining_str = 0
+
+		self.speed_avg = 0
+
+		self.corrector = 0.2
 
 		self.progress = 0
 		self.progress_percent = 0
 		self.total = 1024
 		self.speed = 0
+
+		self.start_time = 0
 
 		self.error_state = 0
 		self.error_message = ""
@@ -94,7 +102,7 @@ class Downloader(object):
 		while self.running and not self.completed:
 			try:
 				action = self.check_if_continue_or_start()
-				logger.debug("Starting Action: output_filename: %s : %s", os.path.split(self.output_filename)[-1], action)
+				logger.debug("Starting Action: output_filename: %s : %s", os.path.split(self.output_filename)[-1], action["type"] )
 				headers = {
 					"user-agent": self.user_agent,
 					"Range": "bytes=%s-" % action["size"]
@@ -104,12 +112,17 @@ class Downloader(object):
 				self.progress = action["size"]
 				logger.debug("Starting Progress: output_filename: %s : %s", os.path.split(self.output_filename)[-1], humansize(self.progress ) )
 
-				response = requests.get('%s'%self.url, headers=headers, stream=True, timeout=5, verify=False)
+				response = requests.get('%s'%self.url, headers=headers, stream=True, timeout=20, verify=False)
 
-				# logger.debug("Filename: %s\n\t\tResponse headers: %s", self.output_filename, response.headers )
+				logger.debug("status: %s", response.status_code)
+				headers_string = ""
+				for k,v in response.headers.iteritems():
+					headers_string += "%s:%s"%(k,v)
+				logger.debug("Filename: %s\n\t\tResponse headers: %s", self.output_filename, headers_string )
 
 				if 'content-range' in response.headers.keys():
 					self.total = int(response.headers['content-range'].split("/")[1])
+
 				else:
 					file_mode = 'w'
 					action['size'] = 0
@@ -124,18 +137,32 @@ class Downloader(object):
 
 
 				w = open(self.output_filename, file_mode )
-				for chunk in response.iter_content(chunk_size=200*1024):
-					logger.debug("Writing chunk: %s : output_filename: %s", humansize(self.progress), os.path.split(self.output_filename)[-1])
-					self.speed = "{:.1f}".format( (len(chunk)/1024.0)/float(time.time()-previous_time) )
+
+				self.start_time = time.time()
+				for chunk in response.iter_content(chunk_size=100*1024):
+					new_speed = (len(chunk)/1024.0)/float(time.time()-previous_time)
+					self.speed_avg = new_speed*0.3 + self.speed_avg * 0.7
+					self.speed = "{:.1f}".format( self.speed_avg )
 					previous_time = time.time()
+					logger.debug("Writing chunk: %s : output_filename: %s: new_speed: %s: average_speed: %s : chunk_size: %s : time_taken: %s", humansize(self.progress), os.path.split(self.output_filename)[-1], new_speed, self.speed, len(chunk), time.time()-previous_time) 
 
 					if not self.running:
 						return
 					self.progress += len(chunk)
 					self.progress_percent = int(100*self.progress/float(self.total))
 					w.write(chunk)
+
+					#time_remaining area
+					download_size_remaining = self.total - self.progress
+					try:
+						self.time_remaining = (download_size_remaining/1024.0)/float(self.speed)
+					except:
+						logger.error(traceback.format_exc())
+					self.update_time_remaining_str()
+
 				w.close()
 
+				self.time_remaining_str = "---"
 				self.running = 0
 				self.progress_percent = 100
 				self.completed = 1
@@ -147,13 +174,15 @@ class Downloader(object):
 				self.speed = "--CE--"
 				action = self.check_if_continue_or_start()
 				logger.debug("CE: Action: %s, Progress: %s", action, humansize(self.progress) )
+				self.time_remaining_str = "---"
 
 			except (requests.exceptions.Timeout,socket.timeout, ssl.SSLError):
 				# print "timeout"
 				self.speed = "--TO--"
 				action = self.check_if_continue_or_start()
-				self.progress = action["size"]
+				self.progress = action["size"]	
 				logger.debug("TO/SSl: Action: %s, Progress: %s", action, humansize(self.progress) )
+				self.time_remaining_str = "---"
 
 			except:
 				self.error_message = "%s" % traceback.format_exc()
@@ -161,6 +190,20 @@ class Downloader(object):
 				self.error_state = 1
 				self.running = 0
 				logger.debug("other Error: Action: %s \n\t\t%s", action, self.error_message)
+
+
+	def update_time_remaining_str(self):
+		new_time = self.time_remaining
+		output_string = ""
+		for index, type_ in enumerate(["s", "m", "h"]):
+			output_string = "%s%s"%( int(new_time%60), type_) + output_string
+			if not int(new_time/60):
+				break
+			# output_string = ":" + output_string
+			new_time = new_time/60
+		# print self.time_remaining, new_time, output_string
+		self.time_remaining_str = output_string
+
 
 
 if __name__=="__main__":

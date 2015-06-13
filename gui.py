@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 import Tkinter as Tk
 import ttk
 import tkFont
@@ -73,13 +74,19 @@ class App(Tk.Frame):
         self.grid(row=0,column=0, sticky="nsew")
         self.master.protocol("WM_DELETE_WINDOW", lambda: self.onquit(button_press=1) ) 
 
-        self.after( self.update_interval, self.update_window) 
+        self.after( self.update_interval, self.update_window)   
+
+        self.resume_session()
 
     def update_window(self):
         pass
 
     def onquit(self, button_press = 0):
         global exit_app, want_to_exit, shown_message_want_to_exit
+
+
+        self.clear_completed()
+        self.save_session(no_prompt=1)
 
         for i in downloader_instances:
             i.running = 0
@@ -198,11 +205,12 @@ class App(Tk.Frame):
             dg.columnconfigure(4, weight=1)
 
             for i in [
-                {"type": "label", "widget_name": "", "row": 0, "column": 0, "text": "Output Filename",  },
+                {"type": "label", "widget_name": "", "row": 0, "column": 0, "text": "Filename",  },
                 {"type": "label", "widget_name": "", "row": 0, "column": 1, "text": "URL"},
                 {"type": "label", "widget_name": "", "row": 0, "column": 2, "text": "Progress" },
                 {"type": "label", "widget_name": "", "row": 0, "column": 3, "text": "Progress %" },
                 {"type": "label", "widget_name": "", "row": 0, "column": 4, "text": "Speed" },
+                {"type": "label", "widget_name": "", "row": 0, "column": 5, "text": "Time Left" },
                 ]:
                 if i["type"] == "label":
                     w = Tk.Label(dg, text=i["text"], bg="#94C9FF", bd=1, relief="groove")        
@@ -233,8 +241,9 @@ class App(Tk.Frame):
                 del downloader_instances[index]
         pass
 
-    def save_session(self):
+    def save_session(self, no_prompt = 0):
         global config_dir
+
         session_file = os.path.join(config_dir, "previous_sessions.txt")
         with open(session_file, 'w') as w:
             for i in downloader_instances:
@@ -242,7 +251,8 @@ class App(Tk.Frame):
                 write_string =  "<::>".join(x)
                 w.write( "%s\n"%write_string )
 
-        tkMessageBox.showinfo("Saved!", "Saved Session to session_file.")
+        if not no_prompt:
+            tkMessageBox.showinfo("Saved!", "Saved Session to session_file.")
 
     def resume_session(self):
         global config_dir
@@ -250,13 +260,14 @@ class App(Tk.Frame):
         w = open(session_file)
         for line in w.readlines():
             self.output_filename,  download_continue, user_agent, url = line.split("<::>")
-            self.widgets["cb_continue"].set(int(download_continue))
+            # self.widgets["cb_continue"].set(int(download_continue))
             self.widgets["listb_url"].delete('0.0',Tk.END)
             self.widgets["listb_url"].insert('0.0', url)
             self.widgets["listb_user_agent"].delete('0.0',Tk.END)
             self.widgets["listb_user_agent"].insert('0.0', user_agent)
             self.add_download()
         w.close()
+        self.widgets["listb_url"].delete('0.0',Tk.END)
         pass
 
     def choose_output(self):
@@ -308,6 +319,7 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "progress", "row": 0, "column": 2, "text": 0},
                 {"type": "label", "widget_name": "progress_percent", "row": 0, "column": 3, "text": 0 },
                 {"type": "label", "widget_name": "speed", "row": 0, "column": 4, "text": 0 },
+                {"type": "label", "widget_name": "time_remaining", "row": 0, "column": 5, "text": 0 },
             ]:
                 var = Tk.StringVar()
                 var.set(str(i["text"]).strip("\n"))
@@ -325,9 +337,12 @@ class App(Tk.Frame):
                 w.grid(row=row, column=i["column"], sticky="wens", pady=3, ipady=5)
 
         downloads_grid_row += 1
+        self.widgets["listb_url"].delete('0.0',Tk.END)
             
     def remove_download(self):
-        for i in downloader_instances:
+        index = len(downloader_instances)
+        while index:
+            i = downloader_instances[index - 1]
             skip = 0
             for j in i.download_labels.keys():
                 lab = i.download_labels[j]
@@ -336,8 +351,13 @@ class App(Tk.Frame):
                     break
                 i.running = 0
                 lab.grid_forget()
+
             if skip:
-                continue
+                index-=1
+            else:
+                del downloader_instances[index - 1]
+                index = len(downloader_instances)
+                index-=1
         pass
 
     def update_window(self):
@@ -350,13 +370,15 @@ class App(Tk.Frame):
         try:
             for i in downloader_instances:
                 if i.completed:
-                    for lab in ["output_filename", "url", "progress", "progress_percent", "speed"]:
+                    for lab in ["output_filename", "url", "progress", "progress_percent", "speed", "time_remaining"]:
                         if i.download_labels[lab].current_mouse_clicked_on_download or self.current_mouse_over_download:
                             break
                         i.download_labels[lab].config(bg="#06E1DF")
                 i.download_labels["progress"].var.set(humansize(i.progress))
                 i.download_labels["progress_percent"].var.set(i.progress_percent)
                 i.download_labels["speed"].var.set(i.speed)
+
+                i.download_labels["time_remaining"].var.set(i.time_remaining_str)
 
         except:
             logger.error("update_window: %s", traceback.format_exc() )
@@ -368,7 +390,7 @@ class App(Tk.Frame):
             if widget.current_mouse_clicked_on_download:
                 return
             widget.previous_color =  widget.cget("bg")
-            widget.config(bg="#FF9A9A")
+            widget.config(bg="#FFC3C3")
 
     def download_row_leave(self, event):
         self.current_mouse_over_download = 0
@@ -384,10 +406,10 @@ class App(Tk.Frame):
             widget = event.widget.downloader_instance.download_labels[i]
             widget.current_mouse_clicked_on_download = not widget.current_mouse_clicked_on_download
             if not widget.current_mouse_clicked_on_download:
-                widget.config(bg="#FF9A9A")
+                widget.config(bg="#FFC3C3")
                 continue
             widget.previous_color =  "#E6E6E6"
-            widget.config(bg="#BEFFC6") 
+            widget.config(bg="#FF6D6D") 
 
 if __name__ == "__main__":
     try:
