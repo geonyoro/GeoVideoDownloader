@@ -260,7 +260,7 @@ class App(Tk.Frame):
         if self.session_resumed:
             logger.info("resume_session: Session already resumed.")
             return
-        logger.debug("resume_session: Session resuming.")
+        logger.info("resume_session: Session resuming.")
         self.session_resumed = 1
         session_file = os.path.join(config_dir, "previous_sessions.txt")
         if not os.path.exists(session_file):

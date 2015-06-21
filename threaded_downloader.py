@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 import requests
-import os
+import os, sys
 import traceback
 import logging
 import time
@@ -9,12 +9,15 @@ import socket
 import ssl
 import threading
 
+config_dir = os.path.join(os.environ["HOME"], ".geon_downloader")
+if not os.path.exists(config_dir):
+    os.mkdir(config_dir)
 
 DIR = os.path.dirname(__file__)
 
 logger = logging.getLogger('Background_Downloader')
 logger.setLevel(logging.DEBUG)
-file_handler = logging.FileHandler( os.path.join(DIR, 'log2.txt' ), mode='w')
+file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
@@ -155,7 +158,7 @@ class DownloadManager(object):
 					speed += float(instance.speed)
 				except:
 					pass
-				if instance.percentage_written!=0 and instance.speed!="":
+				if instance.percentage_written!=0 and instance.speed!="" and not instance.completed:
 					print "--->", instance.segment_no, "P:",instance.percentage_written, "S:", instance.speed
 			# count-=1
 			if all_completed:
@@ -169,9 +172,11 @@ class DownloadManager(object):
 				self.progress_percent = percentage/len(self.downloaders)
 				self.progress = progress
 				# print "To go: %s" % (humansize(self.size-progress))
-				progress_string = ">Progress: %s \tCovered:%s/%s \tTo Go:%s \t Speed:%s \tTime:%s" % (self.progress_percent, humansize(progress), humansize(self.size), humansize(self.size-progress), speed,  time_r)
+				progress_string = ">Progress: %s \tCovered:%s/%s \tTo Go:%s \t Speed:%s \tTime:%s" % (self.progress_percent, 
+					humansize(progress), humansize(self.size), humansize(self.size-progress), speed,  time_r)
 				# logger.debug(progress_string)
 				print progress_string,"\n"
+				sys.stdout.flush()
 			except ZeroDivisionError:
 				pass
 			except:
@@ -201,6 +206,7 @@ class DownloadManager(object):
 		self.completed = 1
 		self.speed ="---"
 		self.time_remaining_str = "---"
+		self.progress_percent = 100
 
 class DownloadThread(object):
 	def __init__(self, filename, url, download_continue, user_agent, start_pos, end_pos, segment_no, manager_instance):
@@ -230,84 +236,97 @@ class DownloadThread(object):
 		self.download()
 
 	def download(self):
-		if self.download_continue:
-			if os.path.exists(self.output_filename):
-				size = os.path.getsize(self.output_filename)
-				file_mode = "a"
-			else:
-				size = 0
-				file_mode = "w"
 
-			self.progress = int(size)
-		else:
-			self.progress = 0
-			file_mode = "w"
-			size = 0 
-
-		headers = {
-			"user-agent" : self.user_agent,
-			"range": "bytes=%s-%s" %(self.start_pos+size, self.end_pos)
-			}
-
-		content_range_retry_count = 0
-		while self.running and self.manager_instance.running and not self.completed:
+		while self.running and self.manager_instance.running and not self.completed:			
 			try:
+				if self.download_continue:
+					if os.path.exists(self.output_filename):
+						size = os.path.getsize(self.output_filename)
+						file_mode = "a"
+					else:
+						size = 0
+						file_mode = "w"
+
+					self.progress = int(size)
+				else:
+					self.progress = 0
+					file_mode = "w"
+					size = 0 
+
+				content_range_retry_count = 0
+
+				headers = {
+					"user-agent" : self.user_agent,
+					"range": "bytes=%s-%s" %(self.start_pos+size, self.end_pos)
+					}
+
 				response = requests.get(self.url, headers=headers, stream=True,  timeout=20)
-				
+				self.download_continue = 1
 				if 'content-range' not in response.headers.keys():
-					logger.debug("Content Range not in headers")
-					print "Problem with %s; %s" % (self.output_filename, headers["range"])
+					logger.debug("Content Range not in headers: %s :%s", self.output_filename, response.status_code)
+					# print "Problem with %s; %s" % (self.output_filename, headers["range"])
 					# print response.headers["content-type"]
-					if content_range_retry_count > 2:
+					if content_range_retry_count > 1000:
 						self.running = 0
+						logger.info("Giving up on %s", self.output_filename)
 						return
 					else:
 						content_range_retry_count += 1
-						time.sleep(2)
+						time.sleep(5)
 						continue
 
-				logger.debug("Filename: %s Seg: %s Status:%s %s %s", self.output_filename, self.segment_no, response.status_code, response.headers["content-range"], response.headers['content-type'])
+				logger.debug("%s \n\tExpires: %s \n\tContent-type:%s", self.output_filename, response.headers["expires"], response.headers["content-type"] )
+				logger.debug("Filename: %s Seg: %s Status:%s %s %s", self.output_filename, self.segment_no, response.status_code, 
+					response.headers["content-range"], response.headers['content-type'])
 
 				self.total = size + int(response.headers['content-length'])
 
-				output_instance = open(self.output_filename, file_mode )
+				with open(self.output_filename, file_mode ) as output_instance:
+					self.start_time = previous_time = time.time()
+					for chunk in response.iter_content(chunk_size=100*1024):
+						time_taken = time.time()-previous_time
+						new_speed = (len(chunk)/1024.0)/float(time_taken)
+						if abs(new_speed - self.speed_avg) < 1000:
+							self.speed_avg = new_speed*self.manager_instance.corrector + self.speed_avg * (1-self.manager_instance.corrector)
+						self.speed = "{:.1f}".format( self.speed_avg )
+						previous_time = time.time()
 
-				self.start_time = previous_time = time.time()
-				for chunk in response.iter_content(chunk_size=150*1024):
-					time_taken = time.time()-previous_time
-					new_speed = (len(chunk)/1024.0)/float(time_taken)
-					if abs(new_speed - self.speed_avg) < 1000:
-						self.speed_avg = new_speed*self.manager_instance.corrector + self.speed_avg * (1-self.manager_instance.corrector)
-					self.speed = "{:.1f}".format( self.speed_avg )
-					previous_time = time.time()
+						self.progress += len(chunk)
+						self.percentage_written = int(100*self.progress/float(self.total))
+						output_instance.write(chunk)
 
-					if not self.manager_instance.running or not self.running:
-						logger.info("Exiting Thread %s" , self.output_filename)
-						return
+						if not self.manager_instance.running or not self.running:
+							logger.info("Exiting Thread %s" , self.output_filename)
+							return
 
-					self.progress += len(chunk)
-					self.percentage_written = int(100*self.progress/float(self.total))
-					output_instance.write(chunk)
-
+				self.progress = os.path.getsize(self.output_filename)
 				self.completed = 1
 				self.percentage_written = 100
 				self.running = 0
+				self.speed = "0"
 				logger.debug("%s Finished", self.output_filename)
-			except requests.exceptions.ConnectionError:
-				self.speed = "--CE--"
+			except (requests.exceptions.ConnectionError, requests.exceptions.Timeout,socket.timeout, ssl.SSLError):
+				logger.debug("Small Errors : %s", self.output_filename)
+				time.sleep(1)
+			except:
+				# self.running = 0
+				logger.debug("%s %s", self.output_filename, traceback.format_exc() )
 
 	def __str__(self):
 		return "%s-%s" %(self.output_filename, self.url)
 
 if __name__=="__main__":
-	DownloadManager(
-		filename ="24-9-2.flv", 
-		download_continue = 1,
-		url="http://s213.mighycdndelivery.com/dl/9f59add83cb2a51acb2b4f235a00b77c/5586763a/ff010597194d1bc9458015ab0ad1f9636e.flv?client=FLASH",
-		user_agent="Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1", 
-		no_of_segments=8)
+	# DownloadManager(
+	# 	filename ="24-9-2.flv", 
+	# 	download_continue = 1,
+	# 	url="http://s213.mighycdndelivery.com/dl/9f59add83cb2a51acb2b4f235a00b77c/5586763a/ff010597194d1bc9458015ab0ad1f9636e.flv?client=FLASH",
+	# 	user_agent="Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1", 
+	# 	no_of_segments=8)
 	# DownloadManager(filename = "test2.mp4", 
-	# 	url = "https://r4---sn-f5o5ojip-ocve.googlevideo.com/videoplayback?key=yt5&mime=video%2Fmp4&itag=18&id=o-AMkqcs827bCUtM3IJVzbKD6cBogSyLaShwSTnFEhQAs7&signature=217E1993986D9F038D868AFF9C0488F0DB4AF70F.F021162487C69ED7A7A60AECD75B8DDDD936BBBF&ms=au&mv=m&upn=XhNnEjF59Nk&mt=1434878905&expire=1434900542&pl=22&mn=sn-f5o5ojip-ocve&ip=197.237.60.150&mm=31&requiressl=yes&initcwndbps=778750&source=youtube&ipbits=0&lmt=1434387396974357&sparams=dur%2Cid%2Cinitcwndbps%2Cip%2Cipbits%2Citag%2Clmt%2Cmime%2Cmm%2Cmn%2Cms%2Cmv%2Cpl%2Cratebypass%2Crequiressl%2Csource%2Cupn%2Cexpire&fexp=936117%2C9406990%2C9407141%2C9408142%2C9408420%2C9408710%2C9413503%2C9414764%2C9415304%2C9416126%2C9416456%2C952640&dur=90.697&ratebypass=yes&sver=3",
+	# 	url = "https://r4---sn-f5o5ojip-ocve.googlevideo.com/videoplayback?key=yt5&mime=video%2Fmp4&itag=18&id=o-AMkqcs827bCUtM3IJVzbKD6cBogSyLaShwSTnFEhQAs7&\
+	# signature=217E1993986D9F038D868AFF9C0488F0DB4AF70F.F021162487C69ED7A7A60AECD75B8DDDD936BBBF&ms=au&mv=m&upn=XhNnEjF59Nk&mt=1434878905&expire=1434900542&pl=22&mn=sn-\
+	#f5o5ojip-ocve&ip=197.237.60.150&mm=31&requiressl=yes&initcwndbps=778750&source=youtube&ipbits=0&lmt=1434387396974357&sparams=dur%2Cid%2Cinitcwndbps%2Cip%2Cipbits%2Citag\
+	# %2Clmt%2Cmime%2Cmm%2Cmn%2Cms%2Cmv%2Cpl%2Cratebypass%2Crequiressl%2Csource%2Cupn%2Cexpire&fexp=936117%2C9406990%2C9407141%2C9408142%2C9408420%2C9408710%2C9413503%2C9414764\
+	# %2C9415304%2C9416126%2C9416456%2C952640&dur=90.697&ratebypass=yes&sver=3",
 	# 	user_agent = "Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1",
 	# 	no_of_segments = 8)
-# https://r4---sn-f5o5ojip-ocve.googlevideo.com/videoplayback?key=yt5&mime=video%2Fmp4&itag=18&id=o-AMkqcs827bCUtM3IJVzbKD6cBogSyLaShwSTnFEhQAs7&signature=217E1993986D9F038D868AFF9C0488F0DB4AF70F.F021162487C69ED7A7A60AECD75B8DDDD936BBBF&ms=au&mv=m&upn=XhNnEjF59Nk&mt=1434878905&expire=1434900542&pl=22&mn=sn-f5o5ojip-ocve&ip=197.237.60.150&mm=31&requiressl=yes&initcwndbps=778750&source=youtube&ipbits=0&lmt=1434387396974357&sparams=dur%2Cid%2Cinitcwndbps%2Cip%2Cipbits%2Citag%2Clmt%2Cmime%2Cmm%2Cmn%2Cms%2Cmv%2Cpl%2Cratebypass%2Crequiressl%2Csource%2Cupn%2Cexpire&fexp=936117%2C9406990%2C9407141%2C9408142%2C9408420%2C9408710%2C9413503%2C9414764%2C9415304%2C9416126%2C9416456%2C952640&dur=90.697&ratebypass=yes&sver=3

@@ -124,7 +124,7 @@ class Downloader(object):
 					self.total = int(response.headers['content-range'].split("/")[1])
 
 				else:
-					logger.debug("Content Range not in headers")
+					logger.debug("Content Range not in headers %s", self.output_filename)
 					return
 					# file_mode = 'w'
 					# action['size'] = 0
