@@ -53,7 +53,7 @@ class Downloader(object):
 
 		self.speed_avg = 0
 
-		self.corrector = 0.2
+		self.corrector = 0.1
 
 		self.progress = 0
 		self.progress_percent = 0
@@ -117,17 +117,19 @@ class Downloader(object):
 				logger.debug("status: %s", response.status_code)
 				headers_string = ""
 				for k,v in response.headers.iteritems():
-					headers_string += "%s:%s"%(k,v)
-				logger.debug("Filename: %s\n\t\tResponse headers: %s", self.output_filename, headers_string )
+					headers_string += "\t%s:%s\n"%(k,v)
+				logger.debug("Filename: %s\n\tResponse headers: %s", self.output_filename, headers_string )
 
 				if 'content-range' in response.headers.keys():
 					self.total = int(response.headers['content-range'].split("/")[1])
 
 				else:
-					file_mode = 'w'
-					action['size'] = 0
-					self.progress = 0
-					self.progress_percent = 0
+					logger.debug("Content Range not in headers")
+					return
+					# file_mode = 'w'
+					# action['size'] = 0
+					# self.progress = 0
+					# self.progress_percent = 0
 
 				if action["size"] == self.total:
 					self.progress_percent = 100
@@ -139,12 +141,13 @@ class Downloader(object):
 				w = open(self.output_filename, file_mode )
 
 				self.start_time = time.time()
-				for chunk in response.iter_content(chunk_size=100*1024):
-					new_speed = (len(chunk)/1024.0)/float(time.time()-previous_time)
-					self.speed_avg = new_speed*0.3 + self.speed_avg * 0.7
+				for chunk in response.iter_content(chunk_size=150*1024):
+					time_taken = time.time()-previous_time
+					new_speed = (len(chunk)/1024.0)/float(time_taken)
+					self.speed_avg = new_speed*self.corrector + self.speed_avg * (1-self.corrector)
 					self.speed = "{:.1f}".format( self.speed_avg )
 					previous_time = time.time()
-					logger.debug("Writing chunk: %s : output_filename: %s: new_speed: %s: average_speed: %s : chunk_size: %s : time_taken: %s", humansize(self.progress), os.path.split(self.output_filename)[-1], new_speed, self.speed, len(chunk), time.time()-previous_time) 
+					# logger.debug("Writing chunk: %s : output_filename: %s: new_speed: %s: average_speed: %s : chunk_size: %s : time_taken: %s", humansize(self.progress), os.path.split(self.output_filename)[-1], new_speed, self.speed, len(chunk), int(time_taken)) 
 
 					if not self.running:
 						return
@@ -156,6 +159,8 @@ class Downloader(object):
 					download_size_remaining = self.total - self.progress
 					try:
 						self.time_remaining = (download_size_remaining/1024.0)/float(self.speed)
+					except ZeroDivisionError:
+						pass
 					except:
 						logger.error(traceback.format_exc())
 					self.update_time_remaining_str()

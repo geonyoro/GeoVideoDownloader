@@ -14,7 +14,7 @@ import sys
 
 DIR = os.path.dirname(__file__)
 
-from geon_downloader import *
+from threaded_downloader import *
 
 logger_main = logging.getLogger('GUI')
 logger_main.setLevel(logging.DEBUG)
@@ -31,22 +31,13 @@ config_dir = os.path.join(os.environ["HOME"], ".geon_downloader")
 if not os.path.exists(config_dir):
     os.mkdir(config_dir)
 
-def humansize(nbytes):
-    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    if nbytes == 0: return '0 B'
-    i = 0
-    while nbytes >= 1024 and i < len(suffixes)-1:
-        nbytes /= 1024.
-        i += 1
-    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
-    return '%s %s' % (f, suffixes[i])
-
 class App(Tk.Frame):
     background_gray_1 = "#f8f8f8"
     def __init__(self):
         Tk.Frame.__init__(self, bg=App.background_gray_1)
         self.current_mouse_over_download = 0
         self.current_mouse_clicked_on_download = 0
+        self.session_resumed = 0
 
         self.update_interval = 50
 
@@ -63,7 +54,7 @@ class App(Tk.Frame):
         self.master.rowconfigure(0, weight=1)
 
         self.master.title("GeoN Download Manager")
-        self.master.geometry("{0}x{1}+100+0".format(1000,620))
+        self.master.geometry("{0}x{1}+100+0".format(740,620))
         self.widgets={}
 
         # resizing
@@ -75,7 +66,6 @@ class App(Tk.Frame):
         self.master.protocol("WM_DELETE_WINDOW", lambda: self.onquit(button_press=1) ) 
 
         self.after( self.update_interval, self.update_window)   
-
         self.resume_session()
 
     def update_window(self):
@@ -83,7 +73,6 @@ class App(Tk.Frame):
 
     def onquit(self, button_press = 0):
         global exit_app, want_to_exit, shown_message_want_to_exit
-
 
         self.clear_completed()
         self.save_session(no_prompt=1)
@@ -97,16 +86,27 @@ class App(Tk.Frame):
             if not shown_message_want_to_exit:
                 logger_main.info("Showing message for exit.")
 
-                win = Tk.Toplevel() 
-                win.lift()
-                l = Tk.Label(win, text = "Closing all background Downloaders...\nWill exit the app after finished.").grid()
-                win.title("Title")
+                win = Tk.Toplevel(bg="#f8f8f8")
+                # win.lift()
+                l = Tk.Label(win, bg="#f8f8f8", text = "Closing all background Downloaders...\nWill exit the app after finished.").grid(padx=20)
+                win.title("Exiting")
                 win.update_idletasks()
-                start = win.winfo_geometry().split("+")[0]
-                win.geometry("+".join([start, "300", "300"]))
+                master_dimensions, master_x, master_y = self.master.winfo_geometry().split("+")
+                master_width, master_height = master_dimensions.split("x")
+
+                my_dim, my_x, my_y = win.winfo_geometry().split("+")
+                my_width, my_height = my_dim.split('x')
+
+                my_x = int(master_x) + int(master_width)/2 - int(my_width)/2
+                my_y = int(master_y) + int(master_height)/2 - int(my_height)/2
+
+                win.geometry("x".join([str(my_width), str(my_height)])+"+"+"+".join([str(my_x), str(my_y)]),)
+
+                win.update_idletasks()
+                win.attributes("-topmost",1)
+                win.overrideredirect(1)
                 
-                win.transient(self.master)
-                win.overrideredirect(True)
+                # win.transient(self.master)
                 
                 shown_message_want_to_exit = 1
             want_to_exit = 1
@@ -154,7 +154,7 @@ class App(Tk.Frame):
 
                 {"type": "checkb", "row": 2, "column": 1, "default_state": 1, "widget_name": "cb_continue" },
                 
-                {"type": "entry", "row": 4, "column": 1, "default_state": 0, "text":1, "width":2, "widget_name": "cb_num_segments" },
+                {"type": "entry", "row": 4, "column": 1, "default_state": 0, "text":4, "width":2, "widget_name": "e_num_segments" },
 
                 {"type": "button", "widget_name": "btn_add", "row": 7, "column": 0, "ipadx": 60, "columnspan": 2, "text": "Add", "command": self.add_download },
                 
@@ -200,9 +200,10 @@ class App(Tk.Frame):
         # downloads_grid
             dg = Tk.Frame(self)
             self.widgets["downloads_grid"] = dg
-            for i in range(4):
-                dg.columnconfigure(i, weight=5)
+            for i in range(6):
+                dg.columnconfigure(i, weight=3)
             dg.columnconfigure(4, weight=1)
+            dg.columnconfigure(1, weight=1)
 
             for i in [
                 {"type": "label", "widget_name": "", "row": 0, "column": 0, "text": "Filename",  },
@@ -231,7 +232,7 @@ class App(Tk.Frame):
 
     def clear_completed(self):
         # print "clear_completed"
-        logger_main.debug("clear_completed: pressed")
+        # logger_main.debug("clear_completed: pressed")
         for index in range( len(downloader_instances)-1, -1, -1):
             i = downloader_instances[index]
             if i.completed:
@@ -247,24 +248,35 @@ class App(Tk.Frame):
         session_file = os.path.join(config_dir, "previous_sessions.txt")
         with open(session_file, 'w') as w:
             for i in downloader_instances:
-                x = [ str(i) for i in [i.output_filename,  i.download_continue, i.user_agent, i.url] ]
+                x = [ str(i) for i in [i.output_filename,  i.download_continue, i.user_agent, i.url, i.no_of_segments] ]
                 write_string =  "<::>".join(x)
                 w.write( "%s\n"%write_string )
 
         if not no_prompt:
-            tkMessageBox.showinfo("Saved!", "Saved Session to session_file.")
+            tkMessageBox.showinfo("Saved!", "Saved Session to Session File.")
 
     def resume_session(self):
         global config_dir
+        if self.session_resumed:
+            logger.info("resume_session: Session already resumed.")
+            return
+        logger.debug("resume_session: Session resuming.")
+        self.session_resumed = 1
         session_file = os.path.join(config_dir, "previous_sessions.txt")
+        if not os.path.exists(session_file):
+            logger.info("No session file")
+            return 
+
         w = open(session_file)
         for line in w.readlines():
-            self.output_filename,  download_continue, user_agent, url = line.split("<::>")
-            # self.widgets["cb_continue"].set(int(download_continue))
+            self.output_filename,  download_continue, user_agent, url, segments = line.split("<::>")
+
+            self.widgets["cb_continue"].set(1)
             self.widgets["listb_url"].delete('0.0',Tk.END)
             self.widgets["listb_url"].insert('0.0', url)
             self.widgets["listb_user_agent"].delete('0.0',Tk.END)
             self.widgets["listb_user_agent"].insert('0.0', user_agent)
+            self.widgets["e_num_segments"].set(int(segments))
             self.add_download()
         w.close()
         self.widgets["listb_url"].delete('0.0',Tk.END)
@@ -291,12 +303,18 @@ class App(Tk.Frame):
         download_continue = self.widgets["cb_continue"].get()
         url = self.widgets["listb_url"].get("0.0", Tk.END).lstrip(" ")
         user_agent = self.widgets["listb_user_agent"].get("0.0", Tk.END)
+        try:
+            segments = int(self.widgets["e_num_segments"].get())
+        except:
+            logger.error(traceback.format_exc())
+            segments = 8
 
-        t = threading.Thread(target=Downloader, kwargs={
-                    "output_filename" : output_filename, 
+        t = threading.Thread(target=DownloadManager, kwargs={
+                    "filename" : output_filename, 
                     "download_continue" : download_continue,
                     "url" : url,
-                    "user_agent" : user_agent
+                    "user_agent" : user_agent,
+                    "no_of_segments" : segments
                 } 
             )
         t.start()
