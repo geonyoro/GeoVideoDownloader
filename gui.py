@@ -59,7 +59,7 @@ class App(Tk.Frame):
 
         # resizing
         self.columnconfigure(0, weight=1)
-        # self.columnconfigure(2, weight=1)
+        # self.columnconfigure(1, weight=1)
         self.basic_widgets()
 
         self.grid(row=0,column=0, sticky="nsew")
@@ -115,7 +115,7 @@ class App(Tk.Frame):
             self.master.destroy()
             self.master.quit()
 
-    def basic_widgets(self):
+    def basic_widgets(self):           
         # button_grid
             bg = Tk.Frame(self, bg=App.background_gray_1)
             for i in [
@@ -198,12 +198,26 @@ class App(Tk.Frame):
             ig.grid(row=1,column=0)
 
         # downloads_grid
-            dg = Tk.Frame(self)
-            self.widgets["downloads_grid"] = dg
+            dg = Tk.Frame(self,bg=App.background_gray_1)
+            # dg = Tk.Frame(self,bg="red")
+            dg.columnconfigure(0, weight=1)
+
+            canvas = Tk.Canvas(dg, bg=App.background_gray_1 )
+            # canvas = Tk.Canvas(dg, bg="red" )
+            win = Tk.Frame(bg=App.background_gray_1)
+            winid = canvas.create_window(0, 0, anchor="nw", window=win)
+            def resize_frame(e, canvas, winid):
+                canvas.itemconfig(winid,  width=e.width-1)
+                canvas.config(scrollregion=(0,0,0,e.height))
+                self.update_idletasks()
+
+            canvas.bind("<Configure>", lambda x:resize_frame(x, canvas, winid))
+
+            self.widgets["downloads_grid"] = win
             for i in range(6):
-                dg.columnconfigure(i, weight=3)
-            dg.columnconfigure(4, weight=1)
-            dg.columnconfigure(1, weight=1)
+                win.columnconfigure(i, weight=3)
+            win.columnconfigure(4, weight=1)
+            win.columnconfigure(1, weight=1)
 
             for i in [
                 {"type": "label", "widget_name": "", "row": 0, "column": 0, "text": "Filename",  },
@@ -214,18 +228,29 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "", "row": 0, "column": 5, "text": "Time Left" },
                 ]:
                 if i["type"] == "label":
-                    w = Tk.Label(dg, text=i["text"], bg="#94C9FF", bd=1, relief="groove")        
+                    w = Tk.Label(win, text=i["text"], bg="#94C9FF", bd=1, relief="groove")        
                     w.grid(row=i["row"], column=i["column"], sticky="we", ipady=5)
 
             dg.grid(row=2,column=0, sticky='ew', padx=5, pady=5)
+            scrollbar = Tk.Scrollbar(dg, command=canvas.yview)
+            scrollbar.grid(row=0, column=1, sticky="ns")
+            canvas.grid(row=0,column=0, sticky="nsew")
+            canvas['yscrollcommand'] = scrollbar.set
+
+            self.update_idletasks()
+            # print scrollbar.winfo_geometry(), canvas.bbox()
 
         #lower_button_grid
             bg2 = Tk.Frame(self, bg=App.background_gray_1)
             b = Tk.Button(bg2, text="Remove", command=self.remove_download, bg="#FFFC94", relief="flat")
             self.widgets["btn_remove"] = b
             b.grid(row=0, column=0, sticky="", padx=5, ipadx=47, pady=10)
-            bg2.grid(row=3, column=0)
 
+            b = Tk.Button(bg2, text="Pause/Resume", command=self.pause_download, bg="#FFFC94", relief="flat")
+            self.widgets["btn_pause"] = b
+            b.grid(row=0, column=1, sticky="", padx=5, ipadx=47, pady=10)
+            bg2.grid(row=3, column=0)
+            
     def start_downloads(self):
         # print "start_downloads"
         pass
@@ -335,7 +360,7 @@ class App(Tk.Frame):
                 {"type": "label", "widget_name": "output_filename", "row": 0, "column": 0, "text": os.path.split(output_filename)[-1][:30],  },
                 {"type": "label", "widget_name": "url", "row": 0, "column": 1, "text": url[:30]},
                 {"type": "label", "widget_name": "progress", "row": 0, "column": 2, "text": 0},
-                {"type": "label", "widget_name": "progress_percent", "row": 0, "column": 3, "text": 0 },
+                {"type": "label", "widget_name": "percentage_written", "row": 0, "column": 3, "text": 0 },
                 {"type": "label", "widget_name": "speed", "row": 0, "column": 4, "text": 0 },
                 {"type": "label", "widget_name": "time_remaining", "row": 0, "column": 5, "text": 0 },
             ]:
@@ -358,25 +383,37 @@ class App(Tk.Frame):
         self.widgets["listb_url"].delete('0.0',Tk.END)
             
     def remove_download(self):
-        index = len(downloader_instances)
-        while index:
-            i = downloader_instances[index - 1]
-            skip = 0
+        index = len(downloader_instances) - 1
+        while index>=0:
+            i = downloader_instances[index]
+            lab = i.download_labels["output_filename"]
+            if not lab.current_mouse_clicked_on_download:
+                index-=1
+                continue
+
+            # this item is selected
+            i.running = 0
+            lab.grid_forget()
+
             for j in i.download_labels.keys():
                 lab = i.download_labels[j]
-                if not lab.current_mouse_clicked_on_download:
-                    skip = 1
-                    break
-                i.running = 0
                 lab.grid_forget()
 
-            if skip:
-                index-=1
-            else:
-                del downloader_instances[index - 1]
-                index = len(downloader_instances)
-                index-=1
-        pass
+            del downloader_instances[index]
+            index = len(downloader_instances)
+
+    def pause_download(self):
+        for item in downloader_instances:
+            lab = item.download_labels["output_filename"]
+            if not lab.current_mouse_clicked_on_download:
+                continue
+
+            item.pause = not item.pause
+
+            for j in item.download_labels.keys():
+                lab = item.download_labels[j]
+                lab.current_mouse_clicked_on_download = 0
+                lab.config(bg="#E6E6E6")
 
     def update_window(self):
         # print "update_window"
@@ -388,12 +425,12 @@ class App(Tk.Frame):
         try:
             for i in downloader_instances:
                 if i.completed:
-                    for lab in ["output_filename", "url", "progress", "progress_percent", "speed", "time_remaining"]:
+                    for lab in ["output_filename", "url", "progress", "percentage_written", "speed", "time_remaining"]:
                         if i.download_labels[lab].current_mouse_clicked_on_download or self.current_mouse_over_download:
                             break
                         i.download_labels[lab].config(bg="#06E1DF")
                 i.download_labels["progress"].var.set(humansize(i.progress))
-                i.download_labels["progress_percent"].var.set(i.progress_percent)
+                i.download_labels["percentage_written"].var.set(i.percentage_written)
                 i.download_labels["speed"].var.set(i.speed)
 
                 i.download_labels["time_remaining"].var.set(i.time_remaining_str)

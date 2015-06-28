@@ -14,7 +14,7 @@ if not os.path.exists(config_dir):
 
 logger = logging.getLogger('Background_Downloader')
 logger.setLevel(logging.DEBUG)
-file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
+file_handler = logging.FileHandler( os.path.join(config_dir, 'log2.txt' ), mode='w')
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
@@ -164,6 +164,7 @@ class Downloader(object):
 					except:
 						logger.error(traceback.format_exc())
 					self.update_time_remaining_str()
+					print self.progress_percent, self.progress, self.time_remaining_str
 
 				w.close()
 
@@ -212,5 +213,5 @@ class Downloader(object):
 
 
 if __name__=="__main__":
-	pass
-	# d = Downloader("/home/george/Desktop/test_img.jpg", 1, "https://captbbrucato.files.wordpress.com/2011/08/dscf0585_stitch-besonhurst-2.jpg")
+	# pass
+	d = Downloader("/home/george/Desktop/strikebacks1e1-2.avi", 1, "http://dd.thefile.me:88/t173gwisyfkt?download_token=1e6a0671c98a2b23cf5c885ed9868a05f48f98fb269f18324e62f76cb6b31dab")

@@ -17,7 +17,8 @@ DIR = os.path.dirname(__file__)
 
 logger = logging.getLogger('Background_Downloader')
 logger.setLevel(logging.DEBUG)
-file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
+# file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
+file_handler = logging.FileHandler( os.path.join(DIR, 'log2.txt' ), mode='w')
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
@@ -71,9 +72,10 @@ class DownloadManager(object):
 
 		self.running = 1
 		self.completed = 0
+		self.pause = False
 
 		self.progress = 0
-		self.progress_percent = 0
+		self.percentage_written = 0
 		self.speed = "0"
 		self.time_remaining_str = "----"
 
@@ -86,12 +88,13 @@ class DownloadManager(object):
 			"range": "bytes=0-"
 			}
 		connected = 0
-		while not connected:
+		while not connected and self.running:
 			try:
-				response = requests.get(url, headers=headers, stream=True, timeout=20)
+				response = requests.get(url, headers=headers, stream=True, timeout=20, verify=False)
 				connected = 1
 			except (requests.exceptions.Timeout, socket.timeout, ssl.SSLError, requests.exceptions.ConnectionError):
-				logger.debug("Error on info obtaining")
+				logger.debug("Error on info obtaining  %s", self.output_filename)
+				time.sleep(1)
 
 
 		logger.debug("Status_Code: %s \tfilename:%s", response.status_code, self.filename)
@@ -121,8 +124,6 @@ class DownloadManager(object):
 			else:
 				start_pos = 0
 
-			# print start_pos,"-",end_pos
-
 			t = threading.Thread(target=DownloadThread, kwargs={
 				"filename" : self.filename, 
 				"url" : self.url, 
@@ -141,6 +142,12 @@ class DownloadManager(object):
 
 	def manage(self):
 		while self.running and not self.completed:
+			if self.pause:
+				self.speed = "-----"
+				self.time_remaining_str = "Paused"
+				time.sleep(0.5)
+				continue
+
 			percentage = 0
 			speed = 0
 			progress = 0
@@ -160,6 +167,7 @@ class DownloadManager(object):
 					pass
 				if instance.percentage_written!=0 and instance.speed!="" and not instance.completed:
 					print "--->", instance.segment_no, "P:",instance.percentage_written, "S:", instance.speed
+					pass
 			# count-=1
 			if all_completed:
 				self.running = 0
@@ -169,10 +177,10 @@ class DownloadManager(object):
 				time_r = humantime(((self.size-progress)/1024.0)/speed)
 				self.time_remaining_str = time_r
 				self.speed = self.speed = "{:.1f}".format( speed )
-				self.progress_percent = percentage/len(self.downloaders)
+				self.percentage_written = percentage/len(self.downloaders)
 				self.progress = progress
 				# print "To go: %s" % (humansize(self.size-progress))
-				progress_string = ">Progress: %s \tCovered:%s/%s \tTo Go:%s \t Speed:%s \tTime:%s" % (self.progress_percent, 
+				progress_string = ">Progress: %s \tCovered:%s/%s \tTo Go:%s \t Speed:%s \tTime:%s" % (self.percentage_written, 
 					humansize(progress), humansize(self.size), humansize(self.size-progress), speed,  time_r)
 				# logger.debug(progress_string)
 				print progress_string,"\n"
@@ -197,16 +205,20 @@ class DownloadManager(object):
 				file_instance.write(content)
 				if size == w.tell():
 					break
+			try:
+				os.remove(instance.output_filename)
+			except:
+				pass
 
 		if not self.running and not self.completed:
-			logger.debug
+			logger.debug("Problem with download" % self.output_filename)
 			return
 
 		self.running = 0
 		self.completed = 1
 		self.speed ="---"
 		self.time_remaining_str = "---"
-		self.progress_percent = 100
+		self.percentage_written = 100
 
 class DownloadThread(object):
 	def __init__(self, filename, url, download_continue, user_agent, start_pos, end_pos, segment_no, manager_instance):
@@ -236,7 +248,6 @@ class DownloadThread(object):
 		self.download()
 
 	def download(self):
-
 		while self.running and self.manager_instance.running and not self.completed:			
 			try:
 				if self.download_continue:
@@ -259,8 +270,17 @@ class DownloadThread(object):
 					"user-agent" : self.user_agent,
 					"range": "bytes=%s-%s" %(self.start_pos+size, self.end_pos)
 					}
+				logger.debug("Headers: %s %s",headers, self.output_filename)
 
-				response = requests.get(self.url, headers=headers, stream=True,  timeout=20)
+				if self.start_pos+size >= self.end_pos:
+					self.completed = 1
+					self.percentage_written = 100
+					self.progress = os.path.getsize(self.output_filename)
+					self.speed = "0"
+					logger.debug("%s Finished", self.output_filename)
+					return
+
+				response = requests.get(self.url, headers=headers, stream=True,  timeout=20, verify=False)
 				self.download_continue = 1
 				if 'content-range' not in response.headers.keys():
 					logger.debug("Content Range not in headers: %s :%s", self.output_filename, response.status_code)
@@ -275,7 +295,13 @@ class DownloadThread(object):
 						time.sleep(5)
 						continue
 
-				logger.debug("%s \n\tExpires: %s \n\tContent-type:%s", self.output_filename, response.headers["expires"], response.headers["content-type"] )
+				if response.status_code!=206:
+					logger.debug("Bad response: %s File:%s Range:%s", response.status_code, self.output_filename, headers["range"])
+					self.completed = 0
+					continue
+
+				if "expires" in response.headers.keys():
+					logger.debug("%s \n\tExpires: %s \n\tContent-type:%s", self.output_filename, response.headers["expires"], response.headers["content-type"] )
 				logger.debug("Filename: %s Seg: %s Status:%s %s %s", self.output_filename, self.segment_no, response.status_code, 
 					response.headers["content-range"], response.headers['content-type'])
 
@@ -283,8 +309,17 @@ class DownloadThread(object):
 
 				with open(self.output_filename, file_mode ) as output_instance:
 					self.start_time = previous_time = time.time()
-					for chunk in response.iter_content(chunk_size=100*1024):
-						time_taken = time.time()-previous_time
+					paused_for_time = 0
+					paused_at_time = 0
+					for chunk in response.iter_content(chunk_size=50*1024):
+						while self.manager_instance.pause and self.running and self.manager_instance.running:
+							paused_at_time = time.time()
+							time.sleep(0.5)
+							paused_for_time += (time.time() - paused_at_time)
+
+						time_taken = time.time() - previous_time - paused_for_time
+						paused_for_time = 0
+
 						new_speed = (len(chunk)/1024.0)/float(time_taken)
 						if abs(new_speed - self.speed_avg) < 1000:
 							self.speed_avg = new_speed*self.manager_instance.corrector + self.speed_avg * (1-self.manager_instance.corrector)
@@ -293,7 +328,7 @@ class DownloadThread(object):
 
 						self.progress += len(chunk)
 						self.percentage_written = int(100*self.progress/float(self.total))
-						output_instance.write(chunk)
+						output_instance.write(chunk)	
 
 						if not self.manager_instance.running or not self.running:
 							logger.info("Exiting Thread %s" , self.output_filename)
@@ -316,6 +351,7 @@ class DownloadThread(object):
 		return "%s-%s" %(self.output_filename, self.url)
 
 if __name__=="__main__":
+	pass
 	# DownloadManager(
 	# 	filename ="24-9-2.flv", 
 	# 	download_continue = 1,
