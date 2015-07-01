@@ -207,9 +207,9 @@ class App(Tk.Frame):
             win = Tk.Frame(bg=App.background_gray_1)
             winid = canvas.create_window(0, 0, anchor="nw", window=win)
             def resize_frame(e, canvas, winid):
-                canvas.itemconfig(winid,  width=e.width-1)
-                canvas.config(scrollregion=(0,0,0,e.height))
-                self.update_idletasks()
+                canvas.itemconfig(winid, width=e.width-1)
+                canvas.config( scrollregion=(0,0,0,e.height))
+                # self.update_idletasks()
 
             canvas.bind("<Configure>", lambda x:resize_frame(x, canvas, winid))
 
@@ -234,7 +234,7 @@ class App(Tk.Frame):
             dg.grid(row=2,column=0, sticky='ew', padx=5, pady=5)
             scrollbar = Tk.Scrollbar(dg, command=canvas.yview)
             scrollbar.grid(row=0, column=1, sticky="ns")
-            canvas.grid(row=0,column=0, sticky="nsew")
+            canvas.grid(row=0,column=0, sticky="ew")
             canvas['yscrollcommand'] = scrollbar.set
 
             self.update_idletasks()

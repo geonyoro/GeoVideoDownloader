@@ -17,8 +17,8 @@ DIR = os.path.dirname(__file__)
 
 logger = logging.getLogger('Background_Downloader')
 logger.setLevel(logging.DEBUG)
-# file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
-file_handler = logging.FileHandler( os.path.join(DIR, 'log2.txt' ), mode='w')
+file_handler = logging.FileHandler( os.path.join(config_dir, 'log.txt' ), mode='w')
+# file_handler = logging.FileHandler( os.path.join(DIR, 'log2.txt' ), mode='w')
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
@@ -51,7 +51,6 @@ def humansize(nbytes):
         i += 1
     f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
     return '%s %s' % (f, suffixes[i])
-
 
 class DownloadManager(object):
 	def __init__(self, filename, download_continue, url, user_agent, no_of_segments=1):
@@ -222,8 +221,10 @@ class DownloadManager(object):
 
 class DownloadThread(object):
 	def __init__(self, filename, url, download_continue, user_agent, start_pos, end_pos, segment_no, manager_instance):
-		self.filename = filename
-		self.output_filename = filename +".part.%s"%(segment_no)
+		dirname = os.path.dirname(filename)
+		file_ = os.path.split(filename)[1]
+		self.filename = os.path.join( dirname, "." + str(file_) )
+		self.output_filename = self.filename +".part.%s"%(segment_no)
 		self.user_agent = user_agent
 		self.segment_no = segment_no
 		self.manager_instance = manager_instance
@@ -352,17 +353,3 @@ class DownloadThread(object):
 
 if __name__=="__main__":
 	pass
-	# DownloadManager(
-	# 	filename ="24-9-2.flv", 
-	# 	download_continue = 1,
-	# 	url="http://s213.mighycdndelivery.com/dl/9f59add83cb2a51acb2b4f235a00b77c/5586763a/ff010597194d1bc9458015ab0ad1f9636e.flv?client=FLASH",
-	# 	user_agent="Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1", 
-	# 	no_of_segments=8)
-	# DownloadManager(filename = "test2.mp4", 
-	# 	url = "https://r4---sn-f5o5ojip-ocve.googlevideo.com/videoplayback?key=yt5&mime=video%2Fmp4&itag=18&id=o-AMkqcs827bCUtM3IJVzbKD6cBogSyLaShwSTnFEhQAs7&\
-	# signature=217E1993986D9F038D868AFF9C0488F0DB4AF70F.F021162487C69ED7A7A60AECD75B8DDDD936BBBF&ms=au&mv=m&upn=XhNnEjF59Nk&mt=1434878905&expire=1434900542&pl=22&mn=sn-\
-	#f5o5ojip-ocve&ip=197.237.60.150&mm=31&requiressl=yes&initcwndbps=778750&source=youtube&ipbits=0&lmt=1434387396974357&sparams=dur%2Cid%2Cinitcwndbps%2Cip%2Cipbits%2Citag\
-	# %2Clmt%2Cmime%2Cmm%2Cmn%2Cms%2Cmv%2Cpl%2Cratebypass%2Crequiressl%2Csource%2Cupn%2Cexpire&fexp=936117%2C9406990%2C9407141%2C9408142%2C9408420%2C9408710%2C9413503%2C9414764\
-	# %2C9415304%2C9416126%2C9416456%2C952640&dur=90.697&ratebypass=yes&sver=3",
-	# 	user_agent = "Mozilla/5.0 (Windows NT 5.2; rv:2.0.1) Gecko/20100101 Firefox/4.0.1",
-	# 	no_of_segments = 8)
