@@ -564,27 +564,30 @@ class App(Tk.Frame):
         total_speed = 0
         try:
             all_completed = 1
-            for i in threaded_video_downloader.downloader_instances:
-                try:
-                    total_speed += float(i.speed)
-                except:
-                    pass
-                if i.completed or i.error:
-                    for lab in ["output_filename", "url", "progress", "percentage_written", "speed", "time_remaining"]:
-                        if i.download_labels[lab].current_mouse_clicked_on_download or self.current_mouse_over_download:
-                            break
-                        if i.error:
-                             i.download_labels[lab].config(bg=download_error_color)
-                        else:
-                            i.download_labels[lab].config(bg=download_completed_color)
-                else:
-                    # not all completed
-                    all_completed = 0
+            try:
+                for i in threaded_video_downloader.downloader_instances:
+                    try:
+                        total_speed += float(i.speed)
+                    except:
+                        pass
+                    if i.completed or i.error:
+                        for lab in ["output_filename", "url", "progress", "percentage_written", "speed", "time_remaining"]:
+                            if i.download_labels[lab].current_mouse_clicked_on_download or self.current_mouse_over_download:
+                                break
+                            if i.error:
+                                 i.download_labels[lab].config(bg=download_error_color)
+                            else:
+                                i.download_labels[lab].config(bg=download_completed_color)
+                    else:
+                        # not all completed
+                        all_completed = 0
 
-                i.download_labels["progress"].var.set(threaded_video_downloader.humansize(i.progress))
-                i.download_labels["percentage_written"].var.set(i.percentage_written)
-                i.download_labels["speed"].var.set(i.speed)
-                i.download_labels["time_remaining"].var.set(i.time_remaining_str)
+                    i.download_labels["progress"].var.set(threaded_video_downloader.humansize(i.progress))
+                    i.download_labels["percentage_written"].var.set(i.percentage_written)
+                    i.download_labels["speed"].var.set(i.speed)
+                    i.download_labels["time_remaining"].var.set(i.time_remaining_str)
+            except:
+                pass
 
             if all_completed and self.suspend_on_quit:
                 # just touch the file

@@ -207,8 +207,11 @@ class DownloadManager:
 
 		#while loop for downloading
 		while self.size > stop and self.running:
+			t = time.time()
 			if self.check_queue() == "quit":
 				return
+
+			previous_time -= (time.time() - t)
 
 			if not already_logged_that_app_is_paused:
 				already_logged_that_app_is_paused = 1
