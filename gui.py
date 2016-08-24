@@ -392,6 +392,7 @@ class App(Tk.Frame):
         w = open(session_file)
         for line in w.readlines():
             # for i in range(4):
+		print line.split("<::>")
                 self.output_filename,  continue_, segment_size, url, segments = line.split("<::>")
                 # par, child = os.path.split(self.output_filename)
                 # child = "%s %s" % (i, child)

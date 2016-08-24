@@ -1,0 +1,11 @@
+.ropeproject/
+algorithm
+docs/
+*sublime*
+*.pyc
+todo
+test.py
+x.html
+*.swp
+*.swo
+*.ico

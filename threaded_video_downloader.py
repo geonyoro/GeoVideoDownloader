@@ -134,7 +134,7 @@ class DownloadManager:
 		if response.status_code == 206:
 			self.size = int(response.headers["content-length"])
 			self.multiple_instances()
-		elif response.status_code <= 226:
+		elif response.status_code == 200:
 			self.size = int(response.headers["content-length"])
 			self.single_instance()
 		else:
@@ -159,7 +159,7 @@ class DownloadManager:
 		t = threading.Thread(target = DownloadThread, kwargs={
 					"url":self.url, 
 					"filename":self.filename, 
-					"start_position": self.get_start_stop_positions(), 
+					"start_position": self.get_start(), 
 					"stop_position":self.size, 
 					"segment_no":0,
 					"manager":self
@@ -226,6 +226,9 @@ class DownloadManager:
 				self.time_remaining_str = "Paused"
 				time.sleep(0.5)
 				continue
+
+            #paused, reset time waiting
+			previous_time -= (time.time() - t)
 
 			#enqueue new threads
 			while self.running_instances < self.no_of_segments and self.running:

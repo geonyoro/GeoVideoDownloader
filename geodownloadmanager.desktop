@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=GeoDownload Manager
+Exec=python /usr/local/bin/geodownloadmanager/gui_glade.py
+Icon=/usr/local/bin/geodownloadmanager/res/icon1.ico
+Categories=GNOME;Utility;

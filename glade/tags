@@ -1,0 +1,56 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+ComboColumns	geoDownload.h	/^		ComboColumns()$/;"	f	class:ComboColumns
+ComboColumns	geoDownload.h	/^class ComboColumns : public Gtk::TreeModel::ColumnRecord$/;"	c
+Filename	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> Filename;$/;"	m	class:ModelColumns
+ModelColumns	geoDownload.h	/^		ModelColumns()$/;"	f	class:ModelColumns
+ModelColumns	geoDownload.h	/^class ModelColumns : public Gtk::TreeModel::ColumnRecord$/;"	c
+SignalHandler	geoDownload.h	/^class SignalHandler{$/;"	c
+action	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> action;$/;"	m	class:ModelColumns
+activate	test.c	/^activate (GtkApplication* app,$/;"	f	file:
+button_add_dl	geoDownload.h	/^Gtk::Button *button_add_dl;$/;"	v
+button_dselect_all	geoDownload.h	/^Gtk::Button *button_dselect_all;$/;"	v
+button_new_dl	geoDownload.h	/^Gtk::Button *button_new_dl;$/;"	v
+button_pause_resume	geoDownload.h	/^Gtk::Button *button_pause_resume;$/;"	v
+button_remove	geoDownload.h	/^Gtk::Button *button_remove;$/;"	v
+button_set_filename	geoDownload.h	/^Gtk::Button *button_set_filename;$/;"	v
+checkValidNumeric	test.cpp	/^bool checkValidNumeric(const std::string &s){$/;"	f
+checkbutton_continue	geoDownload.h	/^Gtk::CheckButton *checkbutton_continue;$/;"	v
+columns	geoDownload.h	/^ModelColumns columns;$/;"	v
+combo_columns	geoDownload.h	/^ComboColumns combo_columns;$/;"	v
+combobox_size	geoDownload.h	/^Gtk::ComboBox *combobox_size;$/;"	v
+comboboxmodel	geoDownload.h	/^Glib::RefPtr<Gtk::ListStore> comboboxmodel;$/;"	v
+continue_new_download_from_previous	geoDownload.h	/^bool continue_new_download_from_previous;$/;"	v
+entry_Segment_Size	geoDownload.h	/^Gtk::Entry *entry_Segment_Size;$/;"	v
+entry_filename	geoDownload.h	/^Gtk::Entry *entry_filename;$/;"	v
+entry_no_concurrent_dl	geoDownload.h	/^Gtk::Entry *entry_no_concurrent_dl;$/;"	v
+entry_no_segments	geoDownload.h	/^Gtk::Entry *entry_no_segments;$/;"	v
+getContinueForNewFile	test.cpp	/^void getContinueForNewFile(){$/;"	f
+getUrl	test.cpp	/^void getUrl(){$/;"	f
+main	test.c	/^int main (int argc, char **argv) {$/;"	f
+main	test.cpp	/^int main(int argc, char *argv[])$/;"	f
+on_button_add_dl_clicked	SignalHandler.h	/^void SignalHandler::on_button_add_dl_clicked(){$/;"	f	class:SignalHandler
+on_button_new_dl_clicked	SignalHandler.h	/^void SignalHandler::on_button_new_dl_clicked(){$/;"	f	class:SignalHandler
+on_button_set_filename_clicked	SignalHandler.h	/^void SignalHandler::on_button_set_filename_clicked(){$/;"	f	class:SignalHandler
+on_entry_no_concurrent_dl_focus_out	SignalHandler.h	/^bool SignalHandler::on_entry_no_concurrent_dl_focus_out(bool x){$/;"	f	class:SignalHandler
+on_entry_no_segments_focus_out	SignalHandler.h	/^bool SignalHandler::on_entry_no_segments_focus_out(bool x){$/;"	f	class:SignalHandler
+on_entry_segment_size_focus_out	SignalHandler.h	/^bool SignalHandler::on_entry_segment_size_focus_out(bool x){$/;"	f	class:SignalHandler
+percentage_complete	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> percentage_complete;$/;"	m	class:ModelColumns
+save_as_filename	geoDownload.h	/^std::string save_as_filename;$/;"	v
+set_initial_values	test.cpp	/^void set_initial_values(){$/;"	f
+setup_model	test.cpp	/^void setup_model(){$/;"	f
+sh	geoDownload.h	/^SignalHandler sh;$/;"	v
+size	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> size;$/;"	m	class:ComboColumns
+size	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> size;$/;"	m	class:ModelColumns
+textview_url	geoDownload.h	/^Gtk::TextView *textview_url;$/;"	v
+time_left	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> time_left;$/;"	m	class:ModelColumns
+treemodel	geoDownload.h	/^Glib::RefPtr<Gtk::ListStore> treemodel;$/;"	v
+treeview1	geoDownload.h	/^Gtk::TreeView *treeview1;$/;"	v
+url	geoDownload.h	/^		Gtk::TreeModelColumn<Glib::ustring> url;$/;"	m	class:ModelColumns
+url	geoDownload.h	/^std::string url;$/;"	v
+window	geoDownload.h	/^Gtk::Window *window;$/;"	v
+windowAdd	geoDownload.h	/^Gtk::Window *windowAdd;$/;"	v
